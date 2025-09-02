@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        #chatbox::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chatbox::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        #chatbox::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        #chatbox::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .message-bubble {
+            transition: all 0.3s ease;
+        }
+        .message-bubble.user {
+            animation: slideInUser 0.4s ease-out;
+        }
+        .message-bubble.bot {
+            animation: slideInBot 0.4s ease-out;
+        }
+        @keyframes slideInUser {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideInBot {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+    <div class="w-full max-w-2xl h-full md:h-[90vh] flex flex-col bg-white shadow-2xl rounded-2xl overflow-hidden">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white p-4 flex items-center shadow-md">
+            <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center mr-4">
+                <!-- Simple Bot SVG Icon -->
+                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M12 6V4m0 16v-2M8 8l1.414 1.414M14.586 14.586L16 16m-8.014-8.014L6 6m10.014 10.014L18 18M12 18a6 6 0 100-12 6 6 0 000 12z"></path></svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold">Campus AI Assistant</h1>
+                <p class="text-sm opacity-80">Your friendly guide</p>
+            </div>
+        </header>
+
+        <!-- Chatbox -->
+        <main id="chatbox" class="flex-1 p-6 overflow-y-auto bg-gray-50">
+            <!-- Messages will be appended here -->
+             <div class="message-bubble bot flex justify-start mb-4">
+                <div class="bg-gray-200 text-gray-800 rounded-lg py-2 px-4 max-w-md">
+                    <p class="font-semibold text-sm mb-1">AI Assistant</p>
+                    <p>Hello! I'm your campus assistant. How can I help you today? Try asking "Navigate from AB1_303 to AB2_112" or "Who is Aarav?".</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Input Area -->
+        <footer class="p-4 border-t bg-white">
+            <form id="chat-form" class="flex items-center space-x-3">
+                <input type="text" id="user-input" placeholder="Ask me anything..." class="flex-1 p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                <button type="submit" class="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 active:scale-95 transition-transform">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                </button>
+            </form>
+        </footer>
+    </div>
+
+    <script>
+        const chatbox = document.getElementById('chatbox');
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+
+        // Generate a simple unique ID for the session
+        const userId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            addMessageToChatbox('user', message);
+            userInput.value = '';
+            
+            showTypingIndicator();
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: userId, message: message })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                removeTypingIndicator();
+                // Replace \n with <br> for multiline responses
+                const formattedResponse = data.response.replace(/\n/g, '<br>');
+                addMessageToChatbox('bot', formattedResponse);
+
+            } catch (error) {
+                removeTypingIndicator();
+                console.error('Error fetching chatbot response:', error);
+                addMessageToChatbox('bot', 'Sorry, I encountered an error. Please try again.');
+            }
+        });
+
+        function addMessageToChatbox(sender, message) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.classList.add('message-bubble', 'flex', 'mb-4');
+            
+            let messageContent;
+            if (sender === 'user') {
+                messageWrapper.classList.add('justify-end');
+                messageContent = `
+                    <div class="bg-blue-500 text-white rounded-lg py-2 px-4 max-w-md">
+                        <p class="font-semibold text-sm mb-1">You</p>
+                        <p>${message}</p>
+                    </div>
+                `;
+            } else { // bot
+                messageWrapper.classList.add('justify-start');
+                messageContent = `
+                    <div class="bg-gray-200 text-gray-800 rounded-lg py-2 px-4 max-w-md">
+                        <p class="font-semibold text-sm mb-1">AI Assistant</p>
+                        <p>${message}</p> <!-- message already formatted with <br> -->
+                    </div>
+                `;
+            }
+            
+            messageWrapper.innerHTML = messageContent;
+            chatbox.appendChild(messageWrapper);
+            
+            // Add animation class after a short delay
+            setTimeout(() => {
+                messageWrapper.classList.add(sender);
+            }, 10);
+
+            // Scroll to the bottom
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+        
+        function showTypingIndicator() {
+            const typingIndicator = document.createElement('div');
+            typingIndicator.id = 'typing-indicator';
+            typingIndicator.classList.add('flex', 'justify-start', 'mb-4');
+            typingIndicator.innerHTML = `
+                <div class="bg-gray-200 text-gray-800 rounded-lg py-2 px-4 max-w-md">
+                    <p class="font-semibold text-sm mb-1">AI Assistant</p>
+                    <div class="flex items-center space-x-1">
+                        <span class="typing-dot animate-bounce">.</span>
+                        <span class="typing-dot animate-bounce" style="animation-delay: 0.2s;">.</span>
+                        <span class="typing-dot animate-bounce" style="animation-delay: 0.4s;">.</span>
+                    </div>
+                </div>
+            `;
+            chatbox.appendChild(typingIndicator);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+    </script>
+</body>
+</html>
